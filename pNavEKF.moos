@@ -1,0 +1,9 @@
+//------------------------------------------------
+// pNavEKF config block
+
+ProcessConfig = pNavEKF
+{
+   AppTick   = 4
+   CommsTick = 4
+}
+
