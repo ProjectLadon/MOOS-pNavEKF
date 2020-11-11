@@ -1,10 +1,11 @@
 #--------------------------------------------------------
 # The CMakeLists.txt for:                       pNavEKF
-# Author(s):                              
+# Author(s):
 #--------------------------------------------------------
 
 SET(SRC
   NavEKF.cpp
+  NavEKF_increment.cpp
   NavEKF_Info.cpp
   main.cpp
 )
@@ -12,9 +13,9 @@ SET(SRC
 ADD_EXECUTABLE(pNavEKF ${SRC})
 
 TARGET_LINK_LIBRARIES(pNavEKF
-   ${MOOS_LIBRARIES}
-   apputil
-   mbutil
-   m
-   pthread)
-
+    ${MOOS_LIBRARIES}
+    apputil
+    mbutil
+    m
+    pthread
+    roboticscape)
