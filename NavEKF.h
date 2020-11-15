@@ -34,11 +34,14 @@ protected: // Standard AppCastingMOOSApp function to overload
 protected:
     void registerVariables();
     bool buildSensorMatrix();
+    string printMatrix(rc_matrix_t* m);
+    string printVector(rc_vector_t* v);
 
 private: // Configuration variable
     vector<string> input_vars;
     vector<state_axis_t> input_types;
     vector<string> output_vars;
+    string p_matrix_var;
 
 private: // State variables
     double proc_noise;

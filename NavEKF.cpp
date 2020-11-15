@@ -6,6 +6,7 @@
 /************************************************************/
 
 #include <iterator>
+#include <sstream>
 #include "MBUtils.h"
 #include "ACTable.h"
 #include "NavEKF.h"
@@ -122,6 +123,7 @@ bool NavEKF::Iterate()
     {
         Notify(output_vars[i], kf.x_est.d[i]);
     }
+    Notify(p_matrix_var, printMatrix(&kf.P));
     AppCastingMOOSApp::PostReport();
     return true;
 }
@@ -200,6 +202,10 @@ bool NavEKF::OnStartUp()
         {
             output_vars[state_axis_t::v_dot] = value;
         }
+        else if (param == "P_MATRIX_OUT")
+        {
+            p_matrix_var = value;
+        }
 
         if(!handled) reportUnhandledConfigWarning(orig);
     }
@@ -244,20 +250,63 @@ bool NavEKF::buildSensorMatrix()
 }
 
 
+string NavEKF::printMatrix(rc_matrix_t* m)
+{
+    stringstream out;
+    out << "[";
+    for (int i = 0; i < (m->rows - 1); i++)
+    {
+        out << "[";
+        for (int j = 0; j < (m->cols - 1); j++)
+        {
+            out << to_string(m->d[i][j]) << ", ";
+        }
+        out << to_string(m->d[i][m->cols - 1]) << "]," << endl;
+    }
+    for (int j = 0; j < (m->cols - 1); j++)
+    {
+        out << to_string(m->d[m->rows - 1][j]) << ", ";
+    }
+    out << to_string(m->d[m->rows - 1][m->cols - 1]) << " ]]";
+    return out.str();
+}
+
+string NavEKF::printVector(rc_vector_t* v)
+{
+    stringstream out;
+    out << "[ ";
+    for (int i = 0; i < (v->len - 1); i++) out << to_string(v->d[i]) << ", ";
+    out << to_string(v->d[v->len - 1]) << " ]";
+    return out.str();
+}
+
 //------------------------------------------------------------
 // Procedure: buildReport()
 
 bool NavEKF::buildReport()
 {
   m_msgs << "============================================ \n";
-  m_msgs << "File:                                        \n";
+  m_msgs << "File: pNavEKF \n";
   m_msgs << "============================================ \n";
 
-  ACTable actab(4);
-  actab << "Alpha | Bravo | Charlie | Delta";
-  actab.addHeaderLines();
-  actab << "one" << "two" << "three" << "four";
-  m_msgs << actab.getFormattedString();
+  ACTable state_tab(output_vars.size());
+  ACTable state_est_tab(output_vars.size());
+  ACTable sensor_tab(input_vars.size());
+  for (int i = 0; i < input_vars.size(); i++) sensor_tab << input_vars[i];
+  for (int i = 0; i < input_vars.size(); i++) sensor_tab <<  to_string(sensor_inputs.d[i]);
+  for (int i = 0; i < output_vars.size(); i++) state_tab << output_vars[i];
+  for (int i = 0; i < output_vars.size(); i++) state_tab << to_string(kf.x_est.d[i]);
+  for (int i = 0; i < output_vars.size(); i++) state_est_tab << output_vars[i];
+  for (int i = 0; i < output_vars.size(); i++) state_est_tab << to_string(kf.x_pre.d[i]);
+
+  m_msgs << "Input Variables\n";
+  m_msgs << sensor_tab.getFormattedString();
+  m_msgs << "Predicted State Variables\n";
+  m_msgs << state_est_tab.getFormattedString();
+  m_msgs << "Estimated State Variables\n";
+  m_msgs << state_tab.getFormattedString();
+  m_msgs << "Covariance Matrix\n";
+  m_msgs << printMatrix(&kf.P);
 
   return(true);
 }
