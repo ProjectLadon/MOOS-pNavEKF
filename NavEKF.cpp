@@ -28,6 +28,9 @@ NavEKF::NavEKF()
     output_vars[state_axis_t::theta_dot] = "EKF_THETA_DOT";
     output_vars[state_axis_t::v_dot] = "EKF_V_DOT";
     nav_state = nullptr;
+    sensor_estimation_matrix = rc_matrix_empty();
+    sensor_inputs = rc_vector_empty();
+    kf = rc_kalman_empty();
 }
 
 //---------------------------------------------------------
@@ -75,24 +78,7 @@ bool NavEKF::OnNewMail(MOOSMSG_LIST &NewMail)
 
 bool NavEKF::OnConnectToServer()
 {
-    rc_matrix_t meas_noise_m;
-    rc_matrix_t proc_noise_m;
-    rc_matrix_t Pi;
-    // Our assumption here is that the process and measurement covariance
-    // matrices are both equal to lambda * I, where I is the identity matrix
-    // of the correct size and lambda is any real number and is provided
-    // by the configuration file..
-    rc_matrix_identity(&meas_noise_m, sensor_estimation_matrix.rows);
-    rc_matrix_identity(&proc_noise_m, NavState2D::getStateCount());
-    rc_matrix_times_scalar(&meas_noise_m, meas_noise);
-    rc_matrix_times_scalar(&proc_noise_m, proc_noise);
-    // Our initial noise estimate is just the identity matrix.
-    rc_matrix_identity(&Pi, NavState2D::getStateCount());
-    rc_kalman_alloc_ekf(&kf, proc_noise_m, meas_noise_m, Pi);
-    // These matrices have no further purpose after initializing the EKF
-    rc_matrix_free(&proc_noise_m);
-    rc_matrix_free(&meas_noise_m);
-    rc_matrix_free(&Pi);
+   
     registerVariables();
     return(true);
 }
@@ -152,19 +138,19 @@ bool NavEKF::OnStartUp()
         bool handled = false;
         if (param == "INPUT")
         {
-            input_vars.push_back(value);
+            input_vars.push_back(toupper(value));
             handled = true;
         }
         else if (param == "INPUT_TYPE")
         {
             string val = toupper(value);
             int8_t type_len = input_types.size();
-            if (value == "X")            input_types.push_back(state_axis_t::x);
-            else if (value == "Y")       input_types.push_back(state_axis_t::y);
-            else if (value == "THETA")   input_types.push_back(state_axis_t::theta);
-            else if (value == "V")       input_types.push_back(state_axis_t::v);
-            else if (value == "THETA_DOT") input_types.push_back(state_axis_t::theta_dot);
-            else if (value == "V_DOT")   input_types.push_back(state_axis_t::v_dot);
+            if (val == "X")            input_types.push_back(state_axis_t::x);
+            else if (val == "Y")       input_types.push_back(state_axis_t::y);
+            else if (val == "THETA")   input_types.push_back(state_axis_t::theta);
+            else if (val == "V")       input_types.push_back(state_axis_t::v);
+            else if (val == "THETA_DOT") input_types.push_back(state_axis_t::theta_dot);
+            else if (val == "V_DOT")   input_types.push_back(state_axis_t::v_dot);
             // This is only true if the input type was a valid one.
             if (input_types.size() > type_len) handled = true;
         }
@@ -181,30 +167,37 @@ bool NavEKF::OnStartUp()
         else if (param == "X_OUT")
         {
             output_vars[state_axis_t::x] = value;
+            handled = true;
         }
         else if (param == "Y_OUT")
         {
             output_vars[state_axis_t::y] = value;
+            handled = true;
         }
         else if (param == "THETA_OUT")
         {
             output_vars[state_axis_t::theta] = value;
+            handled = true;
         }
         else if (param == "V_OUT")
         {
             output_vars[state_axis_t::v] = value;
+            handled = true;
         }
         else if (param == "THETA_DOT_OUT")
         {
             output_vars[state_axis_t::theta_dot] = value;
+            handled = true;
         }
         else if (param == "V_DOT_OUT")
         {
             output_vars[state_axis_t::v_dot] = value;
+            handled = true;
         }
         else if (param == "P_MATRIX_OUT")
         {
             p_matrix_var = value;
+            handled = true;
         }
 
         if(!handled) reportUnhandledConfigWarning(orig);
@@ -214,6 +207,25 @@ bool NavEKF::OnStartUp()
     if (!buildSensorMatrix()) return false;
     // Initialize the state object
     nav_state = new NavState2D(sensor_estimation_matrix, (1/GetAppFreq()));
+    rc_matrix_t meas_noise_m = rc_matrix_empty();
+    rc_matrix_t proc_noise_m = rc_matrix_empty();
+    rc_matrix_t Pi = rc_matrix_empty();
+    // Our assumption here is that the process and measurement covariance
+    // matrices are both equal to lambda * I, where I is the identity matrix
+    // of the correct size and lambda is any real number and is provided
+    // by the configuration file...
+    rc_matrix_identity(&meas_noise_m, sensor_estimation_matrix.rows);
+    rc_matrix_identity(&proc_noise_m, NavState2D::getStateCount());
+    rc_matrix_times_scalar(&meas_noise_m, meas_noise);
+    rc_matrix_times_scalar(&proc_noise_m, proc_noise);
+    // Our initial noise estimate is just the identity matrix.
+    rc_matrix_identity(&Pi, NavState2D::getStateCount());
+    rc_kalman_alloc_ekf(&kf, proc_noise_m, meas_noise_m, Pi);
+    // These matrices have no further purpose after initializing the EKF
+    rc_matrix_free(&proc_noise_m);
+    rc_matrix_free(&meas_noise_m);
+    rc_matrix_free(&Pi);
+    rc_vector_zeros(&sensor_inputs, input_vars.size());
     registerVariables();
     return(true);
 }
@@ -239,7 +251,14 @@ bool NavEKF::buildSensorMatrix()
     // exactly one state and are in the same units with no offsets.
     // Therefore, each row of the sensor matrix H is assumed to have
     // a single 1 and state_count - 1 zeros.
-    if (input_vars.size() != input_types.size()) return false;
+    if (input_vars.size() != input_types.size()) 
+    {
+        cout << "Input vars size: " << input_vars.size() << endl;
+        cout << "Input type size: " << input_types.size() << endl;
+	for (auto &a : input_vars) cout << a << endl;
+	for (auto &a : input_types) cout << a << endl;
+        return false;
+    }
     rc_matrix_zeros(&sensor_estimation_matrix, input_vars.size(),
         NavState2D::getStateCount());
     for (int i = 0; i < input_vars.size(); i++)
