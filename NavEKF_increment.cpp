@@ -15,8 +15,11 @@ const uint8_t state_count = 6;
 const int NavState2D::getStateCount() {return state_count;}
 
 NavState2D::NavState2D(rc_matrix_t sensor_matrix, float time_step):
-dt(time_step), H(rc_matrix_empty()), F(rc_matrix_empty()), 
-x_predict(rc_vector_empty()), y_predict(rc_vector_empty())
+dt(time_step),
+H(rc_matrix_empty()), 
+F(rc_matrix_empty()),
+x_predict(rc_vector_empty()),
+y_predict(rc_vector_empty())
 {
     rc_matrix_duplicate(sensor_matrix, &H);
     rc_vector_zeros(&x_predict, state_count);

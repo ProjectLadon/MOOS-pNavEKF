@@ -34,8 +34,9 @@ protected: // Standard AppCastingMOOSApp function to overload
 protected:
     void registerVariables();
     bool buildSensorMatrix();
-    string printMatrix(rc_matrix_t* m);
-    string printVector(rc_vector_t* v);
+    string printMatrix(const rc_matrix_t* m, bool sci=false, string sep="\n");
+    string printVector(const rc_vector_t* v);
+    void debug_ekf_update(rc_kalman_t* kf, rc_matrix_t F, rc_matrix_t H, rc_vector_t x_pre, rc_vector_t y, rc_vector_t h);
 
 private: // Configuration variable
     vector<string> input_vars;
@@ -50,6 +51,10 @@ private: // State variables
     rc_vector_t sensor_inputs;
     rc_matrix_t sensor_estimation_matrix;
     NavState2D *nav_state;
+    uint64_t data_received;
+    bool data_good;
+    bool server_connected;
+    bool debug_enabled;
 };
 
 #endif
