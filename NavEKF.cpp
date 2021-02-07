@@ -317,7 +317,8 @@ bool NavEKF::buildSensorMatrix()
         NavState2D::getStateCount());
     for (int i = 0; i < input_vars.size(); i++)
     {
-        sensor_estimation_matrix.d[i][input_types[i]] = 1;
+        // sensor_estimation_matrix.d[i][input_types[i]] = 1;
+        sensor_estimation_matrix.d[input_types[i]][i] = 1;
     }
     return true;
 }

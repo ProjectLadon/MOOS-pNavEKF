@@ -37,3 +37,4 @@ schema/*.h
 Makefile
 *.cmake
 tags
+googletest-*

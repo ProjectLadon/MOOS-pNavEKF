@@ -25,17 +25,18 @@ enum state_axis_t : uint8_t {
 class NavState2D
 {
 public:
-    NavState2D(rc_matrix_t sensor_matrix, float time_step);
+    NavState2D(rc_matrix_t sensor_matrix, double time_step);
     ~NavState2D();
 
     void tick(rc_vector_t *last_x);
+    void reset();
     const rc_matrix_t &getF() {return F;};
     const rc_matrix_t &getH() {return H;};
     const rc_vector_t &getXPrediction() {return x_predict;};
     const rc_vector_t &getYPrediction() {return y_predict;};
     static const int getStateCount();
 private:
-    const float dt;
+    const double dt;
     rc_matrix_t H;
     rc_matrix_t F;
     rc_vector_t x_predict;

@@ -20,6 +20,8 @@ class NavEKF : public AppCastingMOOSApp
 public:
     NavEKF();
     ~NavEKF();
+    string printMatrix(const rc_matrix_t* m, bool sci=false, string sep="\n");
+    string printVector(const rc_vector_t* v);
 
 protected: // Standard MOOSApp functions to overload
     bool OnNewMail(MOOSMSG_LIST &NewMail);
@@ -34,8 +36,6 @@ protected: // Standard AppCastingMOOSApp function to overload
 protected:
     void registerVariables();
     bool buildSensorMatrix();
-    string printMatrix(const rc_matrix_t* m, bool sci=false, string sep="\n");
-    string printVector(const rc_vector_t* v);
     void debug_ekf_update(rc_kalman_t* kf, rc_matrix_t F, rc_matrix_t H, rc_vector_t x_pre, rc_vector_t y, rc_vector_t h);
 
 private: // Configuration variable
